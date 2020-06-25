@@ -142,9 +142,9 @@ if [ "$no_clean" == "0" ]; then
     rm_if_exist build
     rm_if_exist deepspeed.egg-info
     # remove apex build files
-    rm_if_exist third_party/apex/dist
-    rm_if_exist third_party/apex/build
-    rm_if_exist third_party/apex/apex.egg-info
+    #rm_if_exist third_party/apex/dist
+    #rm_if_exist third_party/apex/build
+    #rm_if_exist third_party/apex/apex.egg-info
 fi
 
 echo "Updating git hash/branch info"

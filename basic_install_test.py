@@ -5,7 +5,7 @@ try:
     import deepspeed as ds
     print("deepspeed successfully imported")
 except ImportError as err:
-    raise err
+    print(err)
 
 print(f"torch version: {torch.__version__}")
 
@@ -15,13 +15,13 @@ try:
     apex_C = importlib.import_module('apex_C')
     print("apex successfully installed")
 except Exception as err:
-    raise err
+    print(err)
 
 try:
     fused_lamb = importlib.import_module('deepspeed_lamb_cuda')
     print('deepspeed fused lamb kernels successfully installed')
 except Exception as err:
-    raise err
+    print(err)
 
 try:
     from apex.optimizers import FP16_Optimizer
@@ -33,4 +33,4 @@ try:
     ds_transformer = importlib.import_module('deepspeed_transformer_cuda')
     print('deepspeed transformer kernels successfully installed')
 except Exception as err:
-    raise err
+    print(err)

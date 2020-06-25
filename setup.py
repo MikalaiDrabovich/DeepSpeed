@@ -40,6 +40,7 @@ if (TORCH_MAJOR > 1) or (TORCH_MAJOR == 1 and TORCH_MINOR > 4):
     version_ge_1_5 = ['-DVERSION_GE_1_5']
 version_dependent_macros = version_ge_1_1 + version_ge_1_3 + version_ge_1_5
 
+"""
 ext_modules = [
     CUDAExtension(
         name='deepspeed_lamb_cuda',
@@ -115,6 +116,7 @@ ext_modules = [
                       ]
                   }),
 ]
+"""
 
 setup(name='deepspeed',
       version='0.2.0',
@@ -130,5 +132,4 @@ setup(name='deepspeed',
                'bin/ds',
                'bin/ds_ssh'],
       classifiers=['Programming Language :: Python :: 3.6'],
-      ext_modules=ext_modules,
       cmdclass=cmdclass)

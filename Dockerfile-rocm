@@ -1,0 +1,126 @@
+##############################################################################
+# How to build docker container
+##############################################################################
+# wget https://raw.githubusercontent.com/MikalaiDrabovich/DeepSpeed/rocm/Dockerfile-rocm
+# image_name='ndrabovi/deepspeed-rocm:062620'
+# docker build --network=host -f Dockerfile-rocm -t ${image_name} .
+## if issues occurs, try building with --no-cache 
+ 
+ ##############################################################################
+# How to start docker container 
+##############################################################################
+# docker run -it --network=host --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size 16G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -v /data:/data ${image_name}
+
+##############################################################################
+# How to resume work in docker after disconnect
+##############################################################################
+# docker container ls
+# container_id='7d91edae00c0'
+# docker exec -it ${container_id} /bin/bash
+ 
+##############################################################################
+# How to run unit tests from within a docker
+##############################################################################
+# start/resume container then
+# cd /tmp/DeepSpeed && pytest --forked tests/unit/
+
+#FROM rocm/pytorch:rocm3.3_ubuntu16.04_py3.6_pytorch
+#FROM rocm/pytorch:rocm3.5_bionic_py3.6
+#using pre-patched image with enabled fp16 and multi-GPU
+FROM lcskrishna/rocm-pytorch:rocm3.3_ubuntu16.04_py3.6_pytorch_bfloat16_mgpu
+
+##############################################################################
+# Python
+##############################################################################
+	RUN rm -f /usr/bin/python && \
+    ln -s /usr/bin/python3.6 /usr/bin/python && \
+    curl -O https://bootstrap.pypa.io/get-pip.py && \
+        python get-pip.py && \
+        rm get-pip.py && \
+    pip install --upgrade pip && \
+    # Print python an pip version
+    python -V && pip -V
+	
+##############################################################################
+# Installation/Basic Utilities
+##############################################################################
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    software-properties-common \
+    openssh-client openssh-server \
+    pdsh curl sudo net-tools \
+    vim nano htop iputils-ping wget
+
+##############################################################################
+# Installation Latest Git
+##############################################################################
+RUN add-apt-repository ppa:git-core/ppa -y && \
+    apt-get update && \
+    apt-get install -y git && \
+    git --version
+	
+##############################################################################
+# TensorFlow
+##############################################################################
+## compatible version from requirements.txt be installed after 
+# running install.sh below
+
+##############################################################################
+# PyTorch
+##############################################################################
+## compatible version preinstalled in the base image 
+
+##############################################################################
+# Temporary Installation Directory
+##############################################################################
+ENV STAGE_DIR=/tmp
+RUN mkdir -p ${STAGE_DIR}
+
+##############################################################################
+# Mellanox OFED
+##############################################################################
+## compatible version preinstalled in the base image 
+
+##############################################################################
+## Ucomment and set SSH Daemon port
+###############################################################################
+ENV SSH_PORT=2222
+RUN cat /etc/ssh/sshd_config > ${STAGE_DIR}/sshd_config && \
+    sed "0,/^#Port 22/s//Port ${SSH_PORT}/" ${STAGE_DIR}/sshd_config > /etc/ssh/sshd_config
+
+##############################################################################
+## Add deepspeed user
+###############################################################################
+## Add a deepspeed user with user id 8877
+##RUN useradd --create-home --uid 8877 deepspeed
+#RUN useradd --create-home --uid 1000 --shell /bin/bash deepspeed
+#RUN usermod -aG sudo deepspeed
+#RUN usermod -aG video deepspeed
+
+#RUN echo "deepspeed ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# # Change to non-root privilege
+#USER deepspeed
+
+
+##############################################################################
+# Installation DeepSpeed-ROCm
+##############################################################################
+ENV STAGE_DIR=/tmp
+RUN mkdir -p ${STAGE_DIR}
+RUN git clone -b rocm --recursive https://github.com/MikalaiDrabovich/DeepSpeed.git ${STAGE_DIR}/DeepSpeed
+RUN cd ${STAGE_DIR}/DeepSpeed && git submodule init && git submodule update 
+
+RUN cd ${STAGE_DIR}/DeepSpeed/third_party/apex && python setup.py install --cpp_ext --cuda_ext
+RUN cd ${STAGE_DIR}/DeepSpeed && bash install.sh -d -l -r -s -n
+
+RUN python -c "import deepspeed; print(deepspeed.__version__)"
+RUN cd ${STAGE_DIR}/DeepSpeed/DeepSpeedExamples/Megatron-LM && sudo pip install -r requirements.txt
+
+# Now cd to DeepSpeedExamples/Megatron-LM and run
+# bash scripts/vanilla_pretrain_gpt2_data_parallel.sh
+# observe that for GPT2 num_layers=14 (500M parameters) and memory utilization is close to 100% during the steps. Then there will be an OOM error when number of layers incresead to 15
+
+# After that, run 
+# bash scripts/deepspeed-rocm_pretrain_gpt2_380_perc_improvement.sh
+# you will see that now for GPT2 with num layers=60 (1800M parameters, about 380% more) training is proceeding sucessfully (loss is actually decreasing) and without OOM errors.
+# Therefore, for the same AMD GPUs, DeepSpeed ROCm port allows to train much larger GPT2 models, significantly increasing efficiency of AMD hardware.
